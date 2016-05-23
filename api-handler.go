@@ -2,7 +2,7 @@
 * @Author: dingxijin
 * @Date:   2016-05-20 15:30:48
 * @Last Modified by:   CJ Ting
-* @Last Modified time: 2016-05-23 14:15:15
+* @Last Modified time: 2016-05-23 16:14:27
  */
 
 package main
@@ -40,6 +40,21 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		deleteAPI(w, index)
+	}
+
+	if r.URL.Path == "/update" && r.Method == http.MethodPost {
+		indexStr := r.URL.Query().Get("index")
+		index, err := strconv.Atoi(indexStr)
+
+		var api API
+		jsonErr := json.NewDecoder(r.Body).Decode(&api)
+
+		if err != nil || jsonErr != nil {
+			badRequest(w)
+			return
+		}
+
+		updateAPI(w, index, &api)
 	}
 
 	if r.URL.Path == "/get" && r.Method == http.MethodGet {
@@ -82,11 +97,19 @@ func getAPI(w http.ResponseWriter, r *http.Request) {
 func deleteAPI(w http.ResponseWriter, index int) {
 	if apis[index] != nil {
 		apis = append(apis[0:index], apis[index+1:]...)
+		w.WriteHeader(http.StatusOK)
 	} else {
 		badRequest(w)
-		return
 	}
-	w.WriteHeader(http.StatusOK)
+}
+
+func updateAPI(w http.ResponseWriter, index int, api *API) {
+	if apis[index] != nil {
+		apis[index] = api
+		w.WriteHeader(http.StatusOK)
+	} else {
+		badRequest(w)
+	}
 }
 
 func prependAPI(api *API, apis []*API) []*API {

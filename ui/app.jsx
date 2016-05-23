@@ -2,7 +2,7 @@
 * @Author: CJ Ting
 * @Date:   2016-05-18 14:44:29
 * @Last Modified by:   CJ Ting
-* @Last Modified time: 2016-05-23 14:16:04
+* @Last Modified time: 2016-05-23 16:17:52
 */
 
 import "./app.styl"
@@ -14,6 +14,7 @@ const MAX_API_NUMBER = 20
 
 const App = React.createClass({
   key: 0,
+
   getInitialState() {
     return {
       apis: null,
@@ -58,7 +59,7 @@ const App = React.createClass({
           apis: [api, ...this.state.apis.slice(0, MAX_API_NUMBER)],
           api: null,
         })
-        swal("Success!", "", "success")
+        swal("Add API Successfully!", "", "success")
       },
       error(jqXHR, status) {
         swal(status, "", "error")
@@ -99,6 +100,27 @@ const App = React.createClass({
     })
   },
 
+  updateAPI(oldAPI, newAPI) {
+    const index = this.state.apis.findIndex(api => api === oldAPI)
+    const newAPIs = [...this.state.apis]
+    newAPIs.splice(index, 1, newAPI)
+    $.ajax({
+      url: "/api/update?index=" + index,
+      method: "post",
+      data: JSON.stringify(newAPI),
+      success: () => {
+        swal("Update API Successfully!", "", "success")
+        this.setState({
+          apis: newAPIs,
+          api: newAPI,
+        })
+      },
+      error(jqXHR, status) {
+        swal(status, "", "error")
+      },
+    })
+  },
+
   render() {
     return (
       <section className="app">
@@ -112,6 +134,7 @@ const App = React.createClass({
         <APIForm
           key={ this.key++ }
           addAPI={ this.addAPI }
+          updateAPI={ this.updateAPI }
           newAPI={ this.newAPI }
           api={ this.state.api }
         />
@@ -147,7 +170,11 @@ const APIForm = React.createClass({
       contentType: $(this.refs.contentType).val(),
       body: this.editor.getValue(),
     }
-    this.props.addAPI(api)
+    if(this.props.api) {
+      this.props.updateAPI(this.props.api, api)
+    } else {
+      this.props.addAPI(api)
+    }
   },
 
   render() {
