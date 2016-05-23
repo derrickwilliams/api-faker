@@ -2,7 +2,7 @@
 * @Author: dingxijin
 * @Date:   2016-05-20 15:30:48
 * @Last Modified by:   CJ Ting
-* @Last Modified time: 2016-05-23 13:59:53
+* @Last Modified time: 2016-05-23 14:15:15
  */
 
 package main
@@ -84,6 +84,7 @@ func deleteAPI(w http.ResponseWriter, index int) {
 		apis = append(apis[0:index], apis[index+1:]...)
 	} else {
 		badRequest(w)
+		return
 	}
 	w.WriteHeader(http.StatusOK)
 }

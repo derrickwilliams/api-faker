@@ -2,7 +2,7 @@
 * @Author: CJ Ting
 * @Date:   2016-05-18 14:44:29
 * @Last Modified by:   CJ Ting
-* @Last Modified time: 2016-05-23 14:08:21
+* @Last Modified time: 2016-05-23 14:16:04
 */
 
 import "./app.styl"
@@ -162,12 +162,17 @@ const APIForm = React.createClass({
               "Add API"
           }
 
-          <button
-            onClick={ this.props.newAPI }
-            className="btn btn-primary pull-right"
-          >
-            <i className="fa fa-plus"></i>
-          </button>
+          {
+            this.props.api ?
+              <button
+                onClick={ this.props.newAPI }
+                className="btn btn-primary pull-right"
+              >
+                <i className="fa fa-plus"></i>
+              </button>
+              :
+              null
+          }
         </h2>
 
         <form
