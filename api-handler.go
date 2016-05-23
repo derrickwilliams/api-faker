@@ -2,16 +2,17 @@
 * @Author: dingxijin
 * @Date:   2016-05-20 15:30:48
 * @Last Modified by:   CJ Ting
-* @Last Modified time: 2016-05-23 16:14:27
+* @Last Modified time: 2016-05-23 17:18:39
  */
 
 package main
 
 import (
 	"encoding/json"
-	"strconv"
-
+	"io/ioutil"
 	"net/http"
+	"os"
+	"strconv"
 )
 
 type API struct {
@@ -21,9 +22,19 @@ type API struct {
 	Body        string `json:"body"`
 }
 
-const MAX_API_NUMBER = 20
+const MAX_API_NUMBER = 100
+const API_FILE = "apis.json"
 
-var apis []*API
+var apis []API
+
+func init() {
+	if _, err := os.Stat(API_FILE); !os.IsNotExist(err) {
+		data, err := ioutil.ReadFile(API_FILE)
+		if err == nil {
+			json.Unmarshal(data, &apis)
+		}
+	}
+}
 
 func apiHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/add" && r.Method == http.MethodPost {
@@ -54,7 +65,7 @@ func apiHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		updateAPI(w, index, &api)
+		updateAPI(w, index, api)
 	}
 
 	if r.URL.Path == "/get" && r.Method == http.MethodGet {
@@ -76,7 +87,7 @@ func addAPI(w http.ResponseWriter, r *http.Request) {
 		apis = apis[0 : MAX_API_NUMBER-1]
 	}
 
-	apis = prependAPI(&api, apis)
+	apis = prependAPI(api, apis)
 }
 
 func getAPI(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +106,7 @@ func getAPI(w http.ResponseWriter, r *http.Request) {
 }
 
 func deleteAPI(w http.ResponseWriter, index int) {
-	if apis[index] != nil {
+	if index >= 0 && index < len(apis) {
 		apis = append(apis[0:index], apis[index+1:]...)
 		w.WriteHeader(http.StatusOK)
 	} else {
@@ -103,8 +114,8 @@ func deleteAPI(w http.ResponseWriter, index int) {
 	}
 }
 
-func updateAPI(w http.ResponseWriter, index int, api *API) {
-	if apis[index] != nil {
+func updateAPI(w http.ResponseWriter, index int, api API) {
+	if index >= 0 && index < len(apis) {
 		apis[index] = api
 		w.WriteHeader(http.StatusOK)
 	} else {
@@ -112,6 +123,19 @@ func updateAPI(w http.ResponseWriter, index int, api *API) {
 	}
 }
 
-func prependAPI(api *API, apis []*API) []*API {
-	return append([]*API{api}, apis...)
+func prependAPI(api API, apis []API) []API {
+	return append([]API{api}, apis...)
+}
+
+func writeAPIsToFile() {
+	content, err := json.Marshal(apis)
+	if err != nil {
+		return
+	}
+	file, err := os.OpenFile(API_FILE, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		return
+	}
+	file.Write(content)
+	file.Close()
 }

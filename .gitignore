@@ -6,3 +6,4 @@ api-faker
 static/bundle.js
 static/bundle.js.map
 release
+apis.json
