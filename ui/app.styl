@@ -2,7 +2,7 @@
 * @Author: dingxijin
 * @Date:   2016-05-10 16:58:01
 * @Last Modified by:   CJ Ting
-* @Last Modified time: 2016-05-20 17:08:30
+* @Last Modified time: 2016-05-23 12:29:59
 */
 
 h1
@@ -12,29 +12,42 @@ h1
   display: flex
   height: 100vh
 
-.side-panel
+.api-list
   width: 30%
   border-right: dashed 2px #26C281
   > h2
     text-align: center
     color: #26C281
 
-.main-content
+.api-list__item
+  cursor: pointer
+  &:hover
+    background-color: lighten(#2ABB9B, 20%)
+  > i
+    float: right
+    font-size: 15px
+    &:hover
+      color: #ED5565
+
+.api-list__item--active
+  background-color: lighten(#2ABB9B, 20%)
+
+.api-form
   box-sizing: border-box
   padding: 0px 50px
   width: 70%
-  > h1
+  > h2
     color: #19B5FE
 
-.main-form
+.api-form__form
   width: 80%
   margin: auto
 
-.main-form__editor
+.api-form__editor
   > div
     height: 400px
 
-.main-form__buttons
+.api-form__buttons
   display: flex
   align-items: center
   margin: 30px 0

@@ -2,6 +2,9 @@
 
 SHELL := /bin/bash
 
+HOST := root@192.168.0.13
+DIR := /root/api-faker
+
 run:
 	go build && ./api-faker
 
