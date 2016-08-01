@@ -1,20 +1,17 @@
-.PHONY: run release
+.PHONY: run build release
 
 SHELL := /bin/bash
 
-HOST := root@192.168.0.13
-DIR := /root/api-faker
+run:build
+	./tmp/api-faker
 
-run:
-	go build && ./api-faker
+build:
+	go build -o tmp/api-faker
 
 release:
-	mkdir -p release
-	GOOS=linux go build -o release/dsp-hub
+	mkdir release
+	make build
+	cp tmp/api-faker release/
 	cd ui && npm run build
-	cp -r static release/
-	rsync -r --progress release/ $(HOST):$(DIR)
-	@ssh $(HOST) "pgrep dsp-hub | xargs kill -9; cd $(DIR); nohup ./dsp-hub > run.log 2> error.log &"
-	@echo -e "\033[32mSuccess!"
-
+	cp -r ui/_dist release/static
 

@@ -2,13 +2,15 @@
 * @Author: CJ Ting
 * @Date:   2016-05-18 14:44:29
 * @Last Modified by:   CJ Ting
-* @Last Modified time: 2016-05-23 16:17:52
+* @Last Modified time: 2016-08-01 14:43:41
 */
 
 import "./app.styl"
 import React, { PropTypes } from "react"
 import { checkJSON } from "./utils"
 import DOM from "react-dom"
+import CodeMirror from "codemirror"
+import swal from "sweetalert"
 
 const MAX_API_NUMBER = 20
 
@@ -23,7 +25,8 @@ const App = React.createClass({
   },
 
   componentDidMount() {
-    $.getJSON("/api/get")
+    fetch(__HOST__ + "/api/get")
+      .then(res => res.json())
       .then(d => {
         this.setState({
           apis: d,
@@ -49,22 +52,18 @@ const App = React.createClass({
       return
     }
 
-    $.ajax({
-      url: "/api/add",
+    fetch(__HOST__ + "/api/add", {
       method: "post",
-      contentType: "application/json",
-      data: JSON.stringify(api),
-      success: d => {
+      body: JSON.stringify(api),
+    })
+      .then(d => {
         this.setState({
           apis: [api, ...this.state.apis.slice(0, MAX_API_NUMBER)],
           api: null,
         })
         swal("Add API Successfully!", "", "success")
-      },
-      error(jqXHR, status) {
-        swal(status, "", "error")
-      },
-    })
+      })
+      .catch(err => swal("", err, "error"))
   },
 
   deleteAPI(index) {
@@ -166,8 +165,8 @@ const APIForm = React.createClass({
     evt.preventDefault()
     const api = {
       path: this.refs.path.value,
-      method: $(this.refs.method).val(),
-      contentType: $(this.refs.contentType).val(),
+      method: this.refs.method.value,
+      contentType: this.refs.contentType.value,
       body: this.editor.getValue(),
     }
     if(this.props.api) {
@@ -331,4 +330,4 @@ const APIList = React.createClass({
   },
 })
 
-DOM.render(<App />, document.getElementById("app-container"))
+export default App

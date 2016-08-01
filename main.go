@@ -1,8 +1,8 @@
 /*
-* @Author: dingxijin
-* @Date:   2016-05-20 15:21:02
+* @Author: CJ Ting
+* @Date:   2016-07-31 10:48:21
 * @Last Modified by:   CJ Ting
-* @Last Modified time: 2016-05-23 17:18:43
+* @Last Modified time: 2016-08-01 14:50:08
  */
 
 package main
@@ -32,7 +32,8 @@ func main() {
 		}
 	}()
 
-	port := flag.Int("port", 9200, "server port")
+	port := flag.Int("port", 9101, "server port")
+	flag.Parse()
 
 	http.Handle("/api/", http.StripPrefix("/api", http.HandlerFunc(apiHandler)))
 	http.HandleFunc("/", mainHandler)

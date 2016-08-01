@@ -1,47 +1,59 @@
-/*
-* @Author: dingxijin
-* @Date:   2016-05-10 17:23:00
-* @Last Modified by:   CJ Ting
-* @Last Modified time: 2016-05-18 15:06:37
-*/
-
 var webpack = require("webpack")
 var path = require("path")
-var isProduction = process.env.NODE_ENV == "production"
+var fileUtils = require("./file-utils.js")
 
 module.exports = {
-  devtool: isProduction ? "cheap-module-source-map" : "eval",
-  entry: "./app.jsx",
+  devtool: "eval",
+  entry: "./src/entry.jsx",
   output: {
-    path: path.join(__dirname, "../static"),
-    filename: "bundle.js",
+    path: path.join(__dirname, "_dev"),
+    filename: "app.bundle.js",
   },
   resolve: {
-    extensions: ["", ".jsx", ".js", ".css", ".styl"],
+    root: [
+      path.join(__dirname, "src"),
+      path.join(__dirname),
+    ],
+    extensions: ["", ".jsx", ".js", ".styl", ".css"],
   },
   plugins: [
     new webpack.DefinePlugin({
+      "__DEV__": true,
+      "__HOST__": JSON.stringify("http://localhost:9101"),
       "process.env": {
-        "NODE_ENV": JSON.stringify(process.env.NODE_ENV || "development"),
+        "NODE_ENV": JSON.stringify("development"),
       },
     }),
+    function() {
+      fileUtils.copyFile("html/index.dev.html", "_dev/index.html")
+    },
   ],
   module: {
     loaders: [
       {
         test: /\.jsx?$/,
-        loader: "babel?presets[]=es2015&presets[]=react",
+        loader: "babel",
+        exclude: /node_modules/,
+        query: {
+          presets: ["react", "es2015"],
+        },
+      },
+      {
+        test: /\.styl$/,
+        loader: "style!css!stylus?paths[]=styles",
         exclude: /node_modules/,
       },
       {
         test: /\.css$/,
         loader: "style!css",
-        exclude: /node_modules/,
       },
       {
-        test: /\.styl$/,
-        loader: "style!css!stylus",
-        exclude: /node_modules/,
+        test: /\.(png|jpg|jpeg|gif|svg)(\?.*)?$/,
+        loader: "url?limit=10000&name=images/[name].[hash].[ext]",
+      },
+      {
+        test: /\.(eot|ttf|woff|woff2)(\?.*)?$/,
+        loader: "url?limit=10000&name=fonts/[name].[hash].[ext]",
       },
     ],
   },
