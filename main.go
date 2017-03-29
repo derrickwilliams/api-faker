@@ -1,61 +1,225 @@
 /*
 * @Author: CJ Ting
-* @Date:   2016-07-31 10:48:21
+* @Date:   2017-03-28 18:22:14
 * @Last Modified by:   CJ Ting
-* @Last Modified time: 2016-08-01 14:50:08
+* @Last Modified time: 2017-03-29 14:20:47
  */
 
+// API Faker creates a server based on a yaml config file
 package main
 
 import (
-	"flag"
-	"fmt"
-	"io"
-	"log"
+	"io/ioutil"
+	"mime"
 	"net/http"
+	"net/url"
 	"os"
-	"os/signal"
+	"path/filepath"
+	"strconv"
 	"strings"
-	"syscall"
+	"sync"
+	"time"
+
+	"gopkg.in/alecthomas/kingpin.v2"
+
+	log "github.com/Sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 )
 
-var staticHandler = http.FileServer(http.Dir("static"))
+const watchDuration = 500 * time.Millisecond
 
-func main() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		for sig := range sigs {
-			_ = sig
-			writeAPIsToFile()
-			os.Exit(0)
-		}
-	}()
+var (
+	port       int
+	configPath string
 
-	port := flag.Int("port", 9101, "server port")
-	flag.Parse()
+	// protect items
+	mutex sync.Mutex
+	items []*Item
+)
 
-	http.Handle("/api/", http.StripPrefix("/api", http.HandlerFunc(apiHandler)))
-	http.HandleFunc("/", mainHandler)
+var appVersion string // set by -ldflags
 
-	fmt.Printf("Server is listening on %d\n", *port)
-	log.Fatalln(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
+type Item struct {
+	Path string
+	// default value: "GET"
+	Method  string
+	Body    string
+	Headers map[string]string
+	Query   map[string]string
+	// default value: 200
+	Code int
+	File string
 }
 
-func mainHandler(w http.ResponseWriter, r *http.Request) {
-	var result *API
-	for _, api := range apis {
-		if api.Path == r.URL.Path && strings.ToUpper(api.Method) == r.Method {
-			result = &api
-			break
-		}
+func (item *Item) Matched(path string, method string, query url.Values) bool {
+	if item.Path != path {
+		return false
 	}
 
-	if result != nil {
-		w.Header().Set("Content-Type", result.ContentType)
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		io.WriteString(w, result.Body)
+	if item.getMethod() != method {
+		return false
+	}
+
+	if item.Query != nil {
+		for k, v := range item.Query {
+			if query.Get(k) != v {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (item *Item) getMethod() string {
+	m := strings.ToUpper(item.Method)
+	if m == "" {
+		m = "GET"
+	}
+	return m
+}
+
+func (item *Item) getCode() int {
+	c := item.Code
+	if c == 0 {
+		c = 200
+	}
+	return c
+}
+
+func init() {
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+	})
+}
+
+func parseFlags() {
+	kingpin.Flag("port", "listening port").Default("3232").IntVar(&port)
+	kingpin.Version(appVersion)
+	kingpin.CommandLine.HelpFlag.Short('h')
+
+	kingpin.Arg("config", "config file").Required().StringVar(&configPath)
+
+	kingpin.Parse()
+}
+
+func parseConfig(buf []byte) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	if err := yaml.Unmarshal(buf, &items); err != nil {
+		log.WithError(err).Fatal("Failed to parse config")
 	} else {
-		staticHandler.ServeHTTP(w, r)
+		log.Info("Parse config successfully")
+	}
+}
+
+func main() {
+	parseFlags()
+
+	buf, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		log.WithError(err).
+			WithField("config", configPath).
+			Fatal("Failed to read file")
+	}
+
+	parseConfig(buf)
+
+	// watch config file
+	go watchConfig()
+
+	server := createServer()
+
+	log.WithField("port", port).Info("Server started")
+
+	log.WithError(http.ListenAndServe(":"+strconv.Itoa(port), server)).Fatal("Server crashed")
+}
+
+func createServer() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		status := http.StatusOK
+		url := r.URL.String()
+		path := r.URL.Path
+
+		// log
+		defer func() {
+			log.WithFields(log.Fields{
+				"method": r.Method,
+				"code":   status,
+			}).Info(url)
+		}()
+
+		var target *Item
+
+		mutex.Lock()
+		for _, item := range items {
+			if item.Matched(path, r.Method, r.URL.Query()) {
+				target = item
+				break
+			}
+		}
+		mutex.Unlock()
+
+		if target == nil {
+			status = http.StatusNotFound
+			w.WriteHeader(status)
+			return
+		}
+
+		status = target.getCode()
+
+		// write headers
+		for k, v := range target.Headers {
+			w.Header().Set(k, v)
+		}
+
+		// set MIME content type
+		if target.File != "" {
+			mime := mime.TypeByExtension(filepath.Ext(target.File))
+			w.Header().Set("Content-Type", mime)
+		}
+
+		var buf []byte
+
+		// write body
+		if target.File != "" {
+			var err error
+			buf, err = ioutil.ReadFile(target.File)
+			if err != nil {
+				log.WithError(err).WithFields(log.Fields{
+					"url":  url,
+					"file": target.File,
+				}).
+					Error("Failed to read file")
+				status = http.StatusInternalServerError
+			}
+		} else {
+			buf = []byte(target.Body)
+		}
+
+		w.WriteHeader(status)
+		w.Write(buf)
+	})
+}
+
+func watchConfig() {
+	lastModTime := time.Now()
+	for {
+		stat, err := os.Stat(configPath)
+		if err != nil {
+			log.WithError(err).WithField("config", configPath).Error("Can't get config stat")
+		} else {
+			if stat.ModTime().After(lastModTime) {
+				lastModTime = stat.ModTime()
+				log.Info("Detect config file updated, reparse...")
+				buf, err := ioutil.ReadFile(configPath)
+				if err != nil {
+					log.WithError(err).WithField("config", configPath).Error("Can't read config file")
+				} else {
+					parseConfig(buf)
+				}
+			}
+		}
+
+		time.Sleep(watchDuration)
 	}
 }

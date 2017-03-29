@@ -1,0 +1,25 @@
+- path: /
+  method: GET
+  body: get /
+
+- path: /
+  method: POST
+  body: post /
+
+- path: /query
+  query:
+    lang: go
+  body: has lang=go query
+
+- path: /headers
+  headers:
+    X-API-Faker: true
+    X-Lang: Go
+  body: respond with custom headers
+
+- path: /json
+  file: sample.json
+
+- path: /created
+  code: 201
+  body: created
