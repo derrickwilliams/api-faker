@@ -2,7 +2,7 @@
 * @Author: CJ Ting
 * @Date:   2017-03-28 18:22:14
 * @Last Modified by:   CJ Ting
-* @Last Modified time: 2017-03-29 14:20:47
+* @Last Modified time: 2017-04-12 18:53:35
  */
 
 // API Faker creates a server based on a yaml config file
@@ -38,6 +38,8 @@ var (
 )
 
 var appVersion string // set by -ldflags
+
+var configDir string // config file dir
 
 type Item struct {
 	Path string
@@ -122,6 +124,12 @@ func main() {
 			Fatal("Failed to read file")
 	}
 
+	configAbsPath, err := filepath.Abs(configPath)
+	if err != nil {
+		log.WithError(err).Fatal("Failed to get config abs path")
+	}
+	configDir = filepath.Dir(configAbsPath)
+
 	parseConfig(buf)
 
 	// watch config file
@@ -183,7 +191,11 @@ func createServer() http.Handler {
 		// write body
 		if target.File != "" {
 			var err error
-			buf, err = ioutil.ReadFile(target.File)
+			filePath := target.File
+			if !filepath.IsAbs(filePath) {
+				filePath = filepath.Join(configDir, filePath)
+			}
+			buf, err = ioutil.ReadFile(filePath)
 			if err != nil {
 				log.WithError(err).WithFields(log.Fields{
 					"url":  url,
